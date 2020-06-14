@@ -36,7 +36,7 @@ function japaneseDateFormat(date: GeneralDate, isFull = false): string {
      * For example, "2020-06-30"
      */
     const formatString = isFull ? "yyyy-MM-dd HH:mm:ss" : "yyyy-MM-dd";
-    return Utilities.formatDate(date, "GMT", formatString);
+    return Utilities.formatDate(date, "JST", formatString);
 }
 
 function run(): void {
