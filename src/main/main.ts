@@ -92,6 +92,7 @@ function cleansingSubject(subject: string): string | null {
     // ng word filter
     const blackList: string[] = [
         "mentioned you",
+        "Confluence changes in the last 24 hours",
     ];
     for (const word of blackList) {
         if (subject.includes(word)) {
