@@ -1,3 +1,6 @@
+import { isUndefined } from "util";
+import { format } from "path";
+
 type GeneralDate = Date | GoogleAppsScript.Base.Date;
 
 
@@ -5,7 +8,7 @@ function main() {
     /**
      * start point method
      */
-    run()
+    run();
 }
 
 function createQuery(): string {
@@ -27,15 +30,16 @@ function createQuery(): string {
     ].join(" ");
 }
 
-function japaneseDateFormat(date: GeneralDate): string {
+function japaneseDateFormat(date: GeneralDate, isFull = false): string {
     /**
      * Change Date to Japanese normaly string format.
      * For example, "2020-06-30"
      */
-    return Utilities.formatDate(date, "GMT", "yyyy-MM-dd");
+    const formatString = isFull ? "yyyy-MM-dd HH:mm:ss" : "yyyy-MM-dd";
+    return Utilities.formatDate(date, "GMT", formatString);
 }
 
-function run(): null {
+function run(): void {
     /**
      * main domain function
      */
@@ -47,27 +51,82 @@ function run(): null {
     for (const elem of result) {
         const messages: GoogleAppsScript.Gmail.GmailMessage[] = elem.getMessages();
         for (const message of messages) {
-            const messageId = message.getId();
-            // TODO: read message ID from Google Spread Sheet
+            const messageId: string = message.getId();
+            const date: string = japaneseDateFormat(message.getDate());
+            const name: string = cleansingUserName(message.getFrom());
+            const subject: string | null = cleansingSubject(message.getSubject());
 
-            const subject = cleansingSubject(message.getSubject());
             if (!subject) {
                 continue;
             }
-            const date = japaneseDateFormat(message.getDate());
-            const name = cleansingUserName(message.getFrom());
 
+            // TODO: read message ID from Google Spread Sheet
+            if(existsMessageId(messageId, date)) {
+                continue;
+            }
+
+            const postDate: string = japaneseDateFormat(message.getDate(), true);
             postWebHook({
-                "content": `${date}\n${subject}\n${name}\n${messageId}`,
+                "content": `${postDate}\n${subject}\n${name}`,
             });
 
             // TODO: write message ID to Google Spread Sheet
-
+            writeMessageId(messageId, date);
         }
     }
-
-    return null;
 }
+
+function getSheet(spreadSheet: GoogleAppsScript.Spreadsheet.Spreadsheet, name: string): GoogleAppsScript.Spreadsheet.Sheet {
+    /**
+     * If the target sheet does not exist, create a new sheet and return it
+     * refer: https://qiita.com/crawd4274/items/13120429cb3328e8ace2
+     */
+    const sheet: GoogleAppsScript.Spreadsheet.Sheet = spreadSheet.getSheetByName(name);
+    if(!sheet) {
+        const _sheet = spreadSheet.insertSheet();
+        _sheet.setName(name);
+        return _sheet;
+    }
+    return sheet;
+}
+
+function existsMessageId(messageId: string, date: string): boolean {
+    /**
+     * Search the message ID in the A1 cell of the sheet named with the date
+     */
+    const spreadSheetId = PropertiesService.getScriptProperties().getProperty("SPREAD_SHEET_ID");
+    const spreadSheet = SpreadsheetApp.openById(spreadSheetId);
+
+    const sheet: GoogleAppsScript.Spreadsheet.Sheet = getSheet(spreadSheet, date);
+    const cells = sheet.getRange("A1:A1");
+    const cell = cells.getCell(1, 1);
+    const data = cell.getDisplayValue();
+
+    if(data.includes(messageId)) {
+        return true;
+    }
+    return false;
+}
+
+function writeMessageId(messageId: string, date: string): void {
+    /**
+     * Write the message ID in the A1 cell of the sheet named with the date
+     */
+    const spreadSheetId = PropertiesService.getScriptProperties().getProperty("SPREAD_SHEET_ID");
+    const spreadSheet = SpreadsheetApp.openById(spreadSheetId);
+
+    const sheet: GoogleAppsScript.Spreadsheet.Sheet = getSheet(spreadSheet, date);
+    const cells = sheet.getRange("A1:A1");
+    const cell = cells.getCell(1, 1);
+    const data = cell.getDisplayValue();
+
+    if(data.length < 1) {
+        cell.setValue(`${messageId}`);
+    } else {
+        cell.setValue(`${data},${messageId}`);
+    }
+}
+
 
 function postWebHook(data) {
     /**
