@@ -60,14 +60,16 @@ function run(): void {
                 continue;
             }
 
-            if(existsMessageId(messageId, date)) {
+            if (existsMessageId(messageId, date)) {
                 continue;
             }
 
             const postDate: string = japaneseDateFormat(message.getDate(), true);
-            postWebHook({
-                "content": `${postDate}\n${subject}\n${name}`,
-            });
+            postWebHook([
+                postDate,
+                subject,
+                name,
+            ]);
 
             writeMessageId(messageId, date);
         }
@@ -80,7 +82,7 @@ function getSheet(spreadSheet: GoogleAppsScript.Spreadsheet.Spreadsheet, name: s
      * refer: https://qiita.com/crawd4274/items/13120429cb3328e8ace2
      */
     const sheet: GoogleAppsScript.Spreadsheet.Sheet = spreadSheet.getSheetByName(name);
-    if(!sheet) {
+    if (!sheet) {
         const _sheet = spreadSheet.insertSheet();
         _sheet.setName(name);
         return _sheet;
@@ -100,7 +102,7 @@ function existsMessageId(messageId: string, date: string): boolean {
     const cell = cells.getCell(1, 1);
     const data = cell.getDisplayValue();
 
-    if(data.includes(messageId)) {
+    if (data.includes(messageId)) {
         return true;
     }
     return false;
@@ -118,7 +120,7 @@ function writeMessageId(messageId: string, date: string): void {
     const cell = cells.getCell(1, 1);
     const data = cell.getDisplayValue();
 
-    if(data.length < 1) {
+    if (data.length < 1) {
         cell.setValue(`${messageId}`);
     } else {
         cell.setValue(`${data},${messageId}`);
@@ -131,10 +133,15 @@ function postWebHook(data) {
      * send to webhook(Assuming Discord)
      */
     const urls = PropertiesService.getScriptProperties().getProperty("WEB_HOOK_URL");
+    const thanks = getRandomThanksWord();
+    data.unshift(thanks);
+    const payloadData = {
+        "content": data.join("\n"),
+    };
     for (const url of urls.split(",")) {
         const options = {
             'contentType': 'application/json',
-            'payload': JSON.stringify(data),
+            'payload': JSON.stringify(payloadData),
         };
         UrlFetchApp.fetch(url, options);
     }
@@ -178,4 +185,25 @@ function cleansingUserName(name: string): string {
         return m[1].trim();
     }
     return _name;
+}
+
+function getRandomThanksWord(): string {
+    /**
+     * Get peko-ra
+     * refer: https://seesaawiki.jp/hololivetv/d/%C5%C6%C5%C4%A4%DA%A4%B3%A4%E9%A1%DA%B8%EC%CF%BF%A1%DB
+     * TODO: get date from spread sheet
+     */
+    const wordList: string[] = [
+        "お疲れ様ぺこ～",
+        "進捗ばっちりぺこ～",
+        "こーゆーこと！",
+        "更新きｔらあああああ",
+        "ニヤリ",
+        "任せなさい、と",
+        "ありぺこぉ↑",
+        "きゅるるんぺこぺこぉ",
+        "こころもと強くなった気がする",
+        "ぺーこぺこぺこ",
+    ];
+    return wordList[Math.floor(Math.random() * wordList.length)];
 }
