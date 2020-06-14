@@ -60,7 +60,6 @@ function run(): void {
                 continue;
             }
 
-            // TODO: read message ID from Google Spread Sheet
             if(existsMessageId(messageId, date)) {
                 continue;
             }
@@ -70,7 +69,6 @@ function run(): void {
                 "content": `${postDate}\n${subject}\n${name}`,
             });
 
-            // TODO: write message ID to Google Spread Sheet
             writeMessageId(messageId, date);
         }
     }
